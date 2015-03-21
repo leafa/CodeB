@@ -28,11 +28,12 @@ struct Stock {
     double div_rat;
     double volat;
     vector<Order> orders;
-    double bought_val;
-    int bought_num;
+    double owned_val;
+    int owned_num;
+    double 
     Stock() {};
     Stock(double n, double d, double v) :
-        net_worth(n), div_rat(d), volat(v), bought_val(-1.0), bought_num(0) {};
+        net_worth(n), div_rat(d), volat(v), owned_val(-1.0), owned_num(0) {};
 };
 
 map<string, Stock> stocks;
@@ -93,22 +94,11 @@ double min_ask(string ticker)
 {
     Stock &stk = stocks[ticker];
     vector<Order> &orders = stk.orders;
-    double maxbid = 0;
+    double minask = 0;
     for (int i = 0; i < orders.size(); i++)
-        if (orders[i].isBid && orders[i].value > maxbid)
-            maxbid = orders[i].value;
-    return maxbid;
-}
-
-double value_diff(string ticker)
-{
-
-    double maxbid = 0, minask = 0;
-
-        else if (!orders[i].isBid && orders[i].value < minask)
+        if (!orders[i].isBid && orders[i].value < minask)
             minask = orders[i].value;
-    }
-    return minask - maxbid;
+    return minask;
 }
 
 void update_orders(string ticker) {
@@ -147,7 +137,16 @@ void update_info() {
     }
 }
 
-
+bool sell(string ticker, double price, int shares)
+{
+    Stock &stk = stocks[ticker];
+    stringstream oss;
+    oss << "BID " << ticker << " " << price << " " << shares;
+    string res;
+    get_data(oss.str(), res);
+    update_orders(ticker);
+    return (res == "BID_OUT DONE");
+}
 
 int main(int argc, char** argv)
 {
@@ -161,7 +160,7 @@ int main(int argc, char** argv)
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
             if (ticker == "") continue;
-            if (stocks[ticker].bought_val < estimate_value(ticker)) {
+            while (stocks[ticker].owned_val < max_ask(ticker)) {
                 
             }
         }
