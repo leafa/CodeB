@@ -66,6 +66,12 @@ vector<string> sort_value()
     return res;
 }
 
+int get_share_num(double price)
+{
+    // spend 10% of our cash for each investment
+    return (int) my_cash/(price*10);
+}
+
 ////////////////////////
 // Bleh
 
@@ -85,6 +91,10 @@ int main(int argc, char** argv)
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
             if (ticker == "") continue;
+            if (stocks[ticker].div_rat > DIV_THRES) continue;
+
+            int idx = (tickers.size() - NUM_OWNED)/2;
+            cerr << "Considering idx " << idx+i << " with name " << ticker << endl;
             
             Stock &stk = stocks[ticker];
             Order maxbid = max_bid(ticker);
@@ -100,10 +110,10 @@ int main(int argc, char** argv)
 
             int idx = (tickers.size() - NUM_OWNED)/2;
             ticker = tickers[idx + i];
-            cerr << "Considering idx " << idx << " with name " << ticker << endl;
+            cerr << "Considering idx " << idx+i << " with name " << ticker << endl;
             Order minask = min_ask(ticker);
-            int shares = 10;
-            buy(ticker, minask.value, minask.shares);
+            int shares = get_share_num(minask.value);
+            buy(ticker, minask.value, shares);
             owned_stocks[i] = ticker;
         }
 
