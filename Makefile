@@ -1,4 +1,4 @@
-OBJS = client.o actions.o
+OBJS = client.o actions.o heuristics.o
 CC = g++
 DEBUG = -g
 CFLAGS = -c $(DEBUG)
