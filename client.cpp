@@ -9,105 +9,13 @@
 #include <algorithm>
 #include <sstream>
 #include <cassert>
+#include "structs.h"
+#include "actions.h"
+#include "heuristics.h"
 using namespace std;
 using namespace galik;
 using namespace galik::net;
 
-#define NUM_OWNED 3
-
-struct Order {
-    bool isBid;
-    double value;
-    int shares;
-    Order() : isBid(false), value(0), shares(0) {};
-    Order(bool b, double p, int s) : isBid(b), value(p), shares(s) {};
-};
-
-struct Stock {
-    double net_worth;
-    double div_rat;
-    double volat;
-    vector<Order> orders;
-    double owned_val;
-    int owned_num;
-    double owned_div_rat;
-    Stock() {};
-    Stock(double n, double d, double v) :
-        net_worth(n), div_rat(d), volat(v),
-        owned_val(-1.0), owned_num(0), owned_div_rat(0) {};
-};
-
-map<string, Stock> stocks;
-map<string, Stock>::iterator it;
-string owned_stocks[NUM_OWNED];
-double net_worth = 0;
-
-////////////////////////
-// Updating functions
-
-void get_data(string command, string& res) {
-    res.clear();
-    socketstream ss;
-    ss.open("codebb.cloudapp.net", 17429);
-    ss << "Z2 0312\n" << command << "\nCLOSE_CONNECTION\n" << endl;
-    if (ss.good()) {
-        string tmp;
-        getline(ss, tmp);
-        res += tmp;
-    }
-    else cerr << "get_data error: cannot get answer" << endl;
-}
-
-void update_orders(string ticker) {
-    stocks[ticker].orders.clear();
-    
-    string rawres, str;
-    get_data("ORDERS " + ticker, rawres);
-    stringstream iss(rawres);
-    iss >> str;
-    if (str != "SECURITY_ORDERS_OUT") {
-        cerr << "did not get orders info correctly for " << ticker << endl;
-        return;
-    }
-    
-    Order ord;
-    while(iss >> str >> ord.value >> ord.shares)
-        stocks[ticker].orders.push_back(ord);
-}
-
-void update_info() {
-    string rawres, str;
-    get_data("SECURITIES", rawres);
-    stringstream iss(rawres);
-    iss >> str;
-    if (str != "SECURITIES_OUT") {
-        cerr << "did not get securities info correctly" << endl;
-        return;
-    }
-    
-    Stock stk;
-    while(iss >> str >> stk.net_worth >> stk.div_rat >> stk.volat) {
-        stocks[str] = stk;
-        update_orders(str);
-    }
-}
-
-void update_owned() {
-    string rawres, str;
-    get_data("MY_SECURITIES", rawres);
-    stringstream iss(rawres);
-    iss >> str;
-    if (str != "MY_SECURITIES_OUT") {
-        cerr << "did not get owned securities info correctly" << endl;
-        return;
-    }
-
-    int shares; double div_rat;
-    while(iss >> str >> shares >> div_rat) {
-        stocks[str].owned_num = shares;
-        stocks[str].owned_div_rat = div_rat;
-    }
-}
 
 ////////////////////////
 // Action wrappers
@@ -140,58 +48,6 @@ vector<string> sort_value()
 }
 
 ////////////////////////
-// Heuristics
-
-double estimate_value(string ticker)
-{
-    Stock &stk = stocks[ticker];
-    vector<Order> &orders = stk.orders;
-    double avg = 0, total_shares = 0;
-    for (int i = 0; i < orders.size(); i++) {
-        avg += orders[i].value * orders[i].shares;
-        total_shares = orders[i].shares;
-    }
-    return avg/total_shares;
-}
-
-Order max_bid(string ticker)
-{
-    Stock &stk = stocks[ticker];
-    vector<Order> &orders = stk.orders;
-    double maxbid = 0; int imax = 0;
-    for (int i = 0; i < orders.size(); i++) {
-        if (orders[i].isBid && orders[i].value > maxbid) {
-            maxbid = orders[i].value;
-            imax = i;
-        }
-    }
-    return orders[imax];
-}
-
-Order min_ask(string ticker)
-{
-    Stock &stk = stocks[ticker];
-    vector<Order> &orders = stk.orders;
-    double minask = 0; int imin = 0;
-    for (int i = 0; i < orders.size(); i++) {
-        if (!orders[i].isBid && orders[i].value < minask) {
-            minask = orders[i].value;
-            imin = i;
-        }
-    }
-    return orders[imin];
-}
-
-bool do_sell(int i)
-{
-    string ticker = owned_stocks[i];
-    Stock &stk = stocks[ticker];
-    if (stk.owned_val < max_bid(ticker).value)
-        return true;
-    return false;
-}
-
-////////////////////////
 // Bleh
 
 int main(int argc, char** argv)
@@ -199,7 +55,9 @@ int main(int argc, char** argv)
     cout << setprecision(16);
 
     while(true) {
-        update_info();
+        update_cash();
+        update_stocks();
+        update_owned();
         vector<string> tickers = sort_value();
 
         // decide what to sell
@@ -214,16 +72,16 @@ int main(int argc, char** argv)
         }
 
         // decide what to buy
-        vector<string> tickers = sort_value();
+        tickers = sort_value();
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
             if (ticker != "") continue;
 
             int idx = (tickers.size() - NUM_OWNED)/2;
             ticker = tickers[idx + i];
-            double price = min_ask(ticker);
+            Order minask = min_ask(ticker);
             int shares = 10;
-            buy(ticker, price, shares);
+            buy(ticker, minask.value, minask.shares);
         }
 
         sleep(1);

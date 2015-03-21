@@ -1,14 +1,17 @@
-OBJS = client.o
+OBJS = client.o actions.o
 CC = g++
 DEBUG = -g
-CFLAGS = -Wall -c $(DEBUG)
-LFLAGS = -Wall $(DEBUG)
+CFLAGS = -c $(DEBUG)
+LFLAGS = $(DEBUG)
 
 client : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS) -o client
 
 client.o : 
 	$(CC) $(CFLAGS) client.cpp
+
+actions.o : 
+	$(CC) $(CFLAGS) actions.cpp
 
 clean:
 	\rm *.o client
