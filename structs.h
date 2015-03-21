@@ -9,7 +9,8 @@
 #define max(a,b) ((a>b)?(a):(b))
 #define min(a,b) ((a<b)?(a):(b))
 #define INF (1<<30)
-#define EPS 1e-7;
+#define EPS 1e-7
+#define DIV_THRES 0.001
 
 struct Order {
     bool isBid;
