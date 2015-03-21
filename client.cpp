@@ -26,9 +26,10 @@ double my_cash = 0;
 
 bool sell(string ticker, double price, int shares)
 {
+    price -= EPS;
     Stock &stk = stocks[ticker];
     stringstream oss;
-    oss << "BID " << ticker << " " << price << " " << shares;
+    oss << "ASK " << ticker << " " << price << " " << shares;
     string res;
     get_data(oss.str(), res);
 
@@ -39,9 +40,10 @@ bool sell(string ticker, double price, int shares)
 
 bool buy(string ticker, double price, int shares)
 {
+    price += EPS;
     Stock &stk = stocks[ticker];
     stringstream oss;
-    oss << "ASK " << ticker << " " << price << " " << shares;
+    oss << "BID " << ticker << " " << price << " " << shares;
     string res;
     get_data(oss.str(), res);
 
@@ -72,12 +74,14 @@ int main(int argc, char** argv)
     cout << setprecision(16);
 
     while(true) {
+        cerr << "Updating info" << endl;
         update_cash();
         update_stocks();
         update_owned();
+        print_everything();
+        
+        cerr << "Deciding what to sell" << endl;
         vector<string> tickers = sort_value();
-
-        // decide what to sell
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
             if (ticker == "") continue;
@@ -88,7 +92,7 @@ int main(int argc, char** argv)
                 sell(ticker, maxbid.value, maxbid.shares);
         }
 
-        // decide what to buy
+        cerr << "Deciding what to buy" << endl;
         tickers = sort_value();
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
@@ -96,6 +100,7 @@ int main(int argc, char** argv)
 
             int idx = (tickers.size() - NUM_OWNED)/2;
             ticker = tickers[idx + i];
+            cerr << "Considering idx " << idx << " with name " << ticker << endl;
             Order minask = min_ask(ticker);
             int shares = 10;
             buy(ticker, minask.value, minask.shares);

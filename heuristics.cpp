@@ -10,6 +10,7 @@
 #include <sstream>
 #include <cassert>
 #include "structs.h"
+#include "actions.h"
 #include "heuristics.h"
 using namespace std;
 
@@ -41,15 +42,17 @@ Order max_bid(string ticker)
 
 Order min_ask(string ticker)
 {
+    cerr << "min_ask on " << ticker << endl;
     Stock &stk = stocks[ticker];
     vector<Order> &orders = stk.orders;
-    double minask = 0; int imin = 0;
+    double minask = INF; int imin = 0;
     for (int i = 0; i < orders.size(); i++) {
         if (!orders[i].isBid && orders[i].value < minask) {
             minask = orders[i].value;
             imin = i;
         }
     }
+    cerr << "imin = " << imin << endl;
     return orders[imin];
 }
 
