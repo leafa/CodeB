@@ -30,15 +30,20 @@ struct Stock {
     vector<Order> orders;
     double owned_val;
     int owned_num;
-    double 
+    double owned_div_rat;
     Stock() {};
     Stock(double n, double d, double v) :
-        net_worth(n), div_rat(d), volat(v), owned_val(-1.0), owned_num(0) {};
+        net_worth(n), div_rat(d), volat(v),
+        owned_val(-1.0), owned_num(0), owned_div_rat(0) {};
 };
 
 map<string, Stock> stocks;
 map<string, Stock>::iterator it;
 string owned_stocks[NUM_OWNED];
+double net_worth = 0;
+
+////////////////////////
+// Updating functions
 
 void get_data(string command, string& res) {
     res.clear();
@@ -53,56 +58,7 @@ void get_data(string command, string& res) {
     else cerr << "get_data error: cannot get answer" << endl;
 }
 
-vector<string> sort_value()
-{
-    vector<pair<double, string> > things;
-    for (it = stocks.begin(); it != stocks.end(); it++) {
-        double val = estimate_value((*it).first);
-        things.push_back(make_pair(val, (*it).first));
-    }
-    sort(things.begin(), things.end());
-    vector<string> res;
-    for (int i = 0; i < things.size(); i++)
-        res.push_back(things[i].second);
-    return res;
-}
-
-double estimate_value(string ticker)
-{
-    Stock &stk = stocks[ticker];
-    vector<Order> &orders = stk.orders;
-    double avg = 0, total_shares = 0;
-    for (int i = 0; i < orders.size(); i++) {
-        avg += orders[i].value * orders[i].shares;
-        total_shares = orders[i].shares;
-    }
-    return avg/total_shares;
-}
-
-double max_bid(string ticker)
-{
-    Stock &stk = stocks[ticker];
-    vector<Order> &orders = stk.orders;
-    double maxbid = 0;
-    for (int i = 0; i < orders.size(); i++)
-        if (orders[i].isBid && orders[i].value > maxbid)
-            maxbid = orders[i].value;
-    return maxbid;
-}
-
-double min_ask(string ticker)
-{
-    Stock &stk = stocks[ticker];
-    vector<Order> &orders = stk.orders;
-    double minask = 0;
-    for (int i = 0; i < orders.size(); i++)
-        if (!orders[i].isBid && orders[i].value < minask)
-            minask = orders[i].value;
-    return minask;
-}
-
 void update_orders(string ticker) {
-    cerr << "Getting orders info for " << ticker << endl;
     stocks[ticker].orders.clear();
     
     string rawres, str;
@@ -120,7 +76,6 @@ void update_orders(string ticker) {
 }
 
 void update_info() {
-    cerr << "Getting info" << endl;
     string rawres, str;
     get_data("SECURITIES", rawres);
     stringstream iss(rawres);
@@ -137,6 +92,26 @@ void update_info() {
     }
 }
 
+void update_owned() {
+    string rawres, str;
+    get_data("MY_SECURITIES", rawres);
+    stringstream iss(rawres);
+    iss >> str;
+    if (str != "MY_SECURITIES_OUT") {
+        cerr << "did not get owned securities info correctly" << endl;
+        return;
+    }
+
+    int shares; double div_rat;
+    while(iss >> str >> shares >> div_rat) {
+        stocks[str].owned_num = shares;
+        stocks[str].owned_div_rat = div_rat;
+    }
+}
+
+////////////////////////
+// Action wrappers
+
 bool sell(string ticker, double price, int shares)
 {
     Stock &stk = stocks[ticker];
@@ -144,9 +119,80 @@ bool sell(string ticker, double price, int shares)
     oss << "BID " << ticker << " " << price << " " << shares;
     string res;
     get_data(oss.str(), res);
+
+    update_owned();
     update_orders(ticker);
     return (res == "BID_OUT DONE");
 }
+
+vector<string> sort_value()
+{
+    vector<pair<double, string> > things;
+    for (it = stocks.begin(); it != stocks.end(); it++) {
+        double val = estimate_value((*it).first);
+        things.push_back(make_pair(val, (*it).first));
+    }
+    sort(things.begin(), things.end());
+    vector<string> res;
+    for (int i = 0; i < things.size(); i++)
+        res.push_back(things[i].second);
+    return res;
+}
+
+////////////////////////
+// Heuristics
+
+double estimate_value(string ticker)
+{
+    Stock &stk = stocks[ticker];
+    vector<Order> &orders = stk.orders;
+    double avg = 0, total_shares = 0;
+    for (int i = 0; i < orders.size(); i++) {
+        avg += orders[i].value * orders[i].shares;
+        total_shares = orders[i].shares;
+    }
+    return avg/total_shares;
+}
+
+Order max_bid(string ticker)
+{
+    Stock &stk = stocks[ticker];
+    vector<Order> &orders = stk.orders;
+    double maxbid = 0; int imax = 0;
+    for (int i = 0; i < orders.size(); i++) {
+        if (orders[i].isBid && orders[i].value > maxbid) {
+            maxbid = orders[i].value;
+            imax = i;
+        }
+    }
+    return orders[imax];
+}
+
+Order min_ask(string ticker)
+{
+    Stock &stk = stocks[ticker];
+    vector<Order> &orders = stk.orders;
+    double minask = 0; int imin = 0;
+    for (int i = 0; i < orders.size(); i++) {
+        if (!orders[i].isBid && orders[i].value < minask) {
+            minask = orders[i].value;
+            imin = i;
+        }
+    }
+    return orders[imin];
+}
+
+bool do_sell(int i)
+{
+    string ticker = owned_stocks[i];
+    Stock &stk = stocks[ticker];
+    if (stk.owned_val < max_bid(ticker).value)
+        return true;
+    return false;
+}
+
+////////////////////////
+// Bleh
 
 int main(int argc, char** argv)
 {
@@ -160,17 +206,25 @@ int main(int argc, char** argv)
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
             if (ticker == "") continue;
-            while (stocks[ticker].owned_val < max_ask(ticker)) {
-                
-            }
+            
+            Stock &stk = stocks[ticker];
+            Order maxbid = max_bid(ticker);
+            if (stk.owned_val < maxbid.value)
+                sell(ticker, maxbid.value, maxbid.shares);
         }
 
         // decide what to buy
+        vector<string> tickers = sort_value();
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
-            if (ticker == "") continue;
-        }        
-            
+            if (ticker != "") continue;
+
+            int idx = (tickers.size() - NUM_OWNED)/2;
+            ticker = tickers[idx + i];
+            double price = min_ask(ticker);
+            int shares = 10;
+            buy(ticker, price, shares);
+        }
 
         sleep(1);
     }
