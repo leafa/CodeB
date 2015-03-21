@@ -16,6 +16,10 @@ using namespace std;
 using namespace galik;
 using namespace galik::net;
 
+map<string, Stock> stocks;
+map<string, Stock>::iterator it;
+string owned_stocks[NUM_OWNED];
+double my_cash = 0;
 
 ////////////////////////
 // Action wrappers
@@ -31,6 +35,19 @@ bool sell(string ticker, double price, int shares)
     update_owned();
     update_orders(ticker);
     return (res == "BID_OUT DONE");
+}
+
+bool buy(string ticker, double price, int shares)
+{
+    Stock &stk = stocks[ticker];
+    stringstream oss;
+    oss << "ASK " << ticker << " " << price << " " << shares;
+    string res;
+    get_data(oss.str(), res);
+
+    update_owned();
+    update_orders(ticker);
+    return (res == "ASK_OUT DONE");
 }
 
 vector<string> sort_value()
@@ -82,6 +99,7 @@ int main(int argc, char** argv)
             Order minask = min_ask(ticker);
             int shares = 10;
             buy(ticker, minask.value, minask.shares);
+            owned_stocks[i] = ticker;
         }
 
         sleep(1);

@@ -12,8 +12,6 @@
 #include "structs.h"
 #include "heuristics.h"
 using namespace std;
-using namespace galik;
-using namespace galik::net;
 
 double estimate_value(string ticker)
 {

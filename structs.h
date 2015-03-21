@@ -2,9 +2,12 @@
 #define __STRUCTS_H
 
 #include <map>
-using namespace std;
+#include <vector>
+#include <string>
 
 #define NUM_OWNED 3
+#define max(a,b) ((a>b)?(a):(b))
+#define min(a,b) ((a<b)?(a):(b))
 
 struct Order {
     bool isBid;
@@ -18,7 +21,7 @@ struct Stock {
     double net_worth;
     double div_rat;
     double volat;
-    vector<Order> orders;
+    std::vector<Order> orders;
     double owned_val;
     int owned_num;
     double owned_div_rat;
@@ -28,9 +31,9 @@ struct Stock {
         owned_val(-1.0), owned_num(0), owned_div_rat(0) {};
 };
 
-map<string, Stock> stocks;
-map<string, Stock>::iterator it;
-string owned_stocks[NUM_OWNED];
-double my_cash = 0;
+extern std::map<std::string, Stock> stocks;
+extern std::map<std::string, Stock>::iterator it;
+extern std::string owned_stocks[NUM_OWNED];
+extern double my_cash;
 
 #endif
