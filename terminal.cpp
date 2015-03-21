@@ -31,6 +31,7 @@ int main()
     string cmd;
     while(true) {
         string res;
+        cout << ">> ";
         getline(cin, cmd);
         get_data(cmd, res);
         cout << res << endl;

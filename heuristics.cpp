@@ -42,7 +42,6 @@ Order max_bid(string ticker)
 
 Order min_ask(string ticker)
 {
-    cerr << "min_ask on " << ticker << endl;
     Stock &stk = stocks[ticker];
     vector<Order> &orders = stk.orders;
     double minask = INF; int imin = 0;
@@ -52,7 +51,6 @@ Order min_ask(string ticker)
             imin = i;
         }
     }
-    cerr << "imin = " << imin << endl;
     return orders[imin];
 }
 
