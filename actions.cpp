@@ -55,9 +55,12 @@ void update_stocks() {
         cerr << "did not get securities info correctly" << endl;
         return;
     }
-    
+
     Stock stk;
     while(iss >> str >> stk.net_worth >> stk.div_rat >> stk.volat) {
+        stk.owned_val = stocks[str].owned_val;
+        stk.owned_time = stocks[str].owned_time;
+        stk.chocolatey = stocks[str].chocolatey;
         stocks[str] = stk;
         update_orders(str);
     }
@@ -83,8 +86,10 @@ void update_owned() {
     int shares; double div_rat;
     while(iss >> str >> shares >> div_rat) {
         stocks[str].owned_num = shares;
-        if (shares == 0) stocks[str].owned_val = -1;
-        stocks[str].owned_time = time(NULL);
+        if (shares == 0)
+            stocks[str].owned_time = 0;
+        else if (stocks[str].owned_time == 0)
+            stocks[str].owned_time = time(NULL);
     }
 }
 
