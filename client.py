@@ -1,6 +1,6 @@
 import socket
 import sys
-    
+
 def run(*commands):
     data="Z2 0312\n" + "\n".join(commands) + "\nCLOSE_CONNECTION\n"
     try:
@@ -8,9 +8,23 @@ def run(*commands):
         sock.connect(("codebb.cloudapp.net", 17429))
         sock.sendall(data)
         sfile = sock.makefile()
-        rline = sfile.readline()
-        while rline:
-            print(rline.strip())
-            rline = sfile.readline()
+        result = sfile.read()
     finally:
         sock.close()
+        
+    return result;
+
+def update_stocks():
+    res = run("SECURITIES").split()
+    if res[0] != "SECURITIES_OUT":
+        print("Did not get stocks information from server")
+        return
+    return res
+
+def main():
+    
+
+if __name__ == '__main__':
+    main()
+    
+
