@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <ctime>
 #include <sstream>
 #include <cassert>
 #include "structs.h"
@@ -20,14 +21,9 @@ using namespace galik::net;
 
 void get_data(string command, string& res) {
     res.clear();
-    socketstream ss;
-    ss.open("codebb.cloudapp.net", 17429);
-    ss << "Z2 0312\n" << command << "\nCLOSE_CONNECTION\n" << endl;
-    if (ss.good()) {
-        string tmp;
-        getline(ss, tmp);
-        res += tmp;
-    }
+    ss << command << endl;
+    if (ss.good())
+        getline(ss, res);
     else cerr << "get_data error: cannot get answer" << endl;
 }
 
@@ -88,7 +84,7 @@ void update_owned() {
     while(iss >> str >> shares >> div_rat) {
         stocks[str].owned_num = shares;
         if (shares == 0) stocks[str].owned_val = -1;
-        stocks[str].owned_div_rat = div_rat;
+        stocks[str].owned_time = time(NULL);
     }
 }
 
@@ -101,7 +97,7 @@ void print_everything()
         cerr << (*it).first << ": ";
         cerr << stk.net_worth << ", " << stk.div_rat << ", ";
         cerr << stk.volat << ", " << stk.owned_val << ", ";
-        cerr << stk.owned_num << ", " << stk.owned_div_rat << endl;
+        cerr << stk.owned_num << ", " << stk.owned_time << endl;
         cerr << "  Orders: " << endl;
         vector<Order> &orders = stk.orders;
         for (int i = 0; i < orders.size(); i++) {

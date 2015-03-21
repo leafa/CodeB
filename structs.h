@@ -4,8 +4,11 @@
 #include <map>
 #include <vector>
 #include <string>
+#include "galik_socketstream.h"
+using namespace galik;
+using namespace galik::net;
 
-#define NUM_OWNED 3
+#define NUM_OWNED 8
 #define max(a,b) ((a>b)?(a):(b))
 #define min(a,b) ((a<b)?(a):(b))
 #define INF (1<<30)
@@ -27,13 +30,14 @@ struct Stock {
     std::vector<Order> orders;
     double owned_val;
     int owned_num;
-    double owned_div_rat;
+    double owned_time;
     Stock() {};
     Stock(double n, double d, double v) :
         net_worth(n), div_rat(d), volat(v),
-        owned_val(-1.0), owned_num(0), owned_div_rat(0) {};
+        owned_val(-1.0), owned_num(0), owned_time(0) {};
 };
 
+extern socketstream ss;
 extern std::map<std::string, Stock> stocks;
 extern std::map<std::string, Stock>::iterator it;
 extern std::string owned_stocks[NUM_OWNED];

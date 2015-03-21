@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <ctime>
 #include <sstream>
 #include <cassert>
 #include "structs.h"
@@ -16,6 +17,7 @@ using namespace std;
 using namespace galik;
 using namespace galik::net;
 
+socketstream ss;
 map<string, Stock> stocks;
 map<string, Stock>::iterator it;
 string owned_stocks[NUM_OWNED];
@@ -70,8 +72,16 @@ vector<string> sort_value()
 
 int get_share_num(double price)
 {
-    // spend 10% of our cash for each investment
-    return (int) my_cash/(price*10);
+    // spend 2% of our cash for each investment
+    return (int) my_cash/(price*50);
+}
+
+bool not_worth_it(string ticker, double price, int shares)
+{
+    Stock& stk = stocks[ticker];
+    double time_held = time(NULL) - stk.owned_time; 
+    double net_gain = price*shares + (time_held*stk.div_rat-1)*stk.owned_val*stk.owned_num;
+    return (net_gain < 10);
 }
 
 ////////////////////////
@@ -80,6 +90,8 @@ int get_share_num(double price)
 int main(int argc, char** argv)
 {
     cout << setprecision(16);
+    ss.open("codebb.cloudapp.net", 17429);
+    ss << "Z2 0312" << endl;
 
     while(true) {
 //        cerr << "Updating info" << endl;
@@ -87,15 +99,13 @@ int main(int argc, char** argv)
         update_stocks();
         update_owned();
         cerr << setprecision(16);
-        cerr << "Current cash: " << my_cash << endl;
 //        print_everything();
         
-//        cerr << "Deciding what to sell" << endl;
+       cerr << "Deciding what to sell" << endl;
         vector<string> tickers = sort_value();
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
             if (ticker == "") continue;
-            if (stocks[ticker].div_rat > DIV_THRES) continue;
 
             int idx = (tickers.size() - NUM_OWNED)/2;
             Stock &stk = stocks[ticker];
@@ -104,11 +114,12 @@ int main(int argc, char** argv)
                 continue;
             }
             Order maxbid = max_bid(ticker);
-            if (stk.owned_val < maxbid.value)
-                sell(ticker, maxbid.value, maxbid.shares);
+            double price = maxbid.value; int shares = stocks[ticker].owned_num;
+            if (not_worth_it(ticker, price, shares)) continue;
+                sell(ticker, price, shares);
         }
 
-//        cerr << "Deciding what to buy" << endl;
+       cerr << "Deciding what to buy" << endl;
         tickers = sort_value();
         for (int i = 0; i < NUM_OWNED; i++) {
             string ticker = owned_stocks[i];
@@ -122,7 +133,11 @@ int main(int argc, char** argv)
             owned_stocks[i] = ticker;
         }
 
+        cerr << "Current cash: " << my_cash << endl;
         sleep(1);
     }
+    string tmp;
+    get_data("CLEAR_BID", tmp);
+    get_data("CLEAR_ASK", tmp);
     return 0;
 }
