@@ -1,51 +1,179 @@
-/*
- * File:   main.cpp
- * Author: atamarkin2
- *
- * Created on June 26, 2014, 5:11 PM
- */
-
 #include <string>
 #include "galik_socketstream.h"
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 #include <stdio.h>
 #include <vector>
-
+#include <map>
+#include <algorithm>
+#include <sstream>
+#include <cassert>
 using namespace std;
-
 using namespace galik;
 using namespace galik::net;
 
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
-    size_t start = 0, end = 0;
-    while ((end = s.find(delim, start)) != string::npos) {
-        elems.push_back(s.substr(start, end - start));
-        start = end + 1;
+#define NUM_OWNED 3
+
+struct Order {
+    bool isBid;
+    double value;
+    int shares;
+    Order() : isBid(false), value(0), shares(0) {};
+    Order(bool b, double p, int s) : isBid(b), value(p), shares(s) {};
+};
+
+struct Stock {
+    double net_worth;
+    double div_rat;
+    double volat;
+    vector<Order> orders;
+    double bought_val;
+    int bought_num;
+    Stock() {};
+    Stock(double n, double d, double v) :
+        net_worth(n), div_rat(d), volat(v), bought_val(-1.0), bought_num(0) {};
+};
+
+map<string, Stock> stocks;
+map<string, Stock>::iterator it;
+string owned_stocks[NUM_OWNED];
+
+void get_data(string command, string& res) {
+    res.clear();
+    socketstream ss;
+    ss.open("codebb.cloudapp.net", 17429);
+    ss << "Z2 0312\n" << command << "\nCLOSE_CONNECTION\n" << endl;
+    if (ss.good()) {
+        string tmp;
+        getline(ss, tmp);
+        res += tmp;
     }
-    elems.push_back(s.substr(start));
-    return elems;
+    else cerr << "get_data error: cannot get answer" << endl;
 }
 
-/*
- *
- */
-int main(int argc, char** argv) {
-    string name("Z2");
-    string password("0312");
+vector<string> sort_value()
+{
+    vector<pair<double, string> > things;
+    for (it = stocks.begin(); it != stocks.end(); it++) {
+        double val = estimate_value((*it).first);
+        things.push_back(make_pair(val, (*it).first));
+    }
+    sort(things.begin(), things.end());
+    vector<string> res;
+    for (int i = 0; i < things.size(); i++)
+        res.push_back(things[i].second);
+    return res;
+}
 
-    while(!cin.eof()) {
-        cout << ">> ";
-        string command;
-        getline(cin, command);
-        socketstream ss;
-        ss.open("codebb.cloudapp.net", 17429);
-        ss << name << " " << password << "\n" << command << "\nCLOSE_CONNECTION\n" << endl;
-        while (ss.good() && !ss.eof()) {
-            string line;
-            getline(ss, line);
-            cout << line << endl;
+double estimate_value(string ticker)
+{
+    Stock &stk = stocks[ticker];
+    vector<Order> &orders = stk.orders;
+    double avg = 0, total_shares = 0;
+    for (int i = 0; i < orders.size(); i++) {
+        avg += orders[i].value * orders[i].shares;
+        total_shares = orders[i].shares;
+    }
+    return avg/total_shares;
+}
+
+double max_bid(string ticker)
+{
+    Stock &stk = stocks[ticker];
+    vector<Order> &orders = stk.orders;
+    double maxbid = 0;
+    for (int i = 0; i < orders.size(); i++)
+        if (orders[i].isBid && orders[i].value > maxbid)
+            maxbid = orders[i].value;
+    return maxbid;
+}
+
+double min_ask(string ticker)
+{
+    Stock &stk = stocks[ticker];
+    vector<Order> &orders = stk.orders;
+    double maxbid = 0;
+    for (int i = 0; i < orders.size(); i++)
+        if (orders[i].isBid && orders[i].value > maxbid)
+            maxbid = orders[i].value;
+    return maxbid;
+}
+
+double value_diff(string ticker)
+{
+
+    double maxbid = 0, minask = 0;
+
+        else if (!orders[i].isBid && orders[i].value < minask)
+            minask = orders[i].value;
+    }
+    return minask - maxbid;
+}
+
+void update_orders(string ticker) {
+    cerr << "Getting orders info for " << ticker << endl;
+    stocks[ticker].orders.clear();
+    
+    string rawres, str;
+    get_data("ORDERS " + ticker, rawres);
+    stringstream iss(rawres);
+    iss >> str;
+    if (str != "SECURITY_ORDERS_OUT") {
+        cerr << "did not get orders info correctly for " << ticker << endl;
+        return;
+    }
+    
+    Order ord;
+    while(iss >> str >> ord.value >> ord.shares)
+        stocks[ticker].orders.push_back(ord);
+}
+
+void update_info() {
+    cerr << "Getting info" << endl;
+    string rawres, str;
+    get_data("SECURITIES", rawres);
+    stringstream iss(rawres);
+    iss >> str;
+    if (str != "SECURITIES_OUT") {
+        cerr << "did not get securities info correctly" << endl;
+        return;
+    }
+    
+    Stock stk;
+    while(iss >> str >> stk.net_worth >> stk.div_rat >> stk.volat) {
+        stocks[str] = stk;
+        update_orders(str);
+    }
+}
+
+
+
+int main(int argc, char** argv)
+{
+    cout << setprecision(16);
+
+    while(true) {
+        update_info();
+        vector<string> tickers = sort_value();
+
+        // decide what to sell
+        for (int i = 0; i < NUM_OWNED; i++) {
+            string ticker = owned_stocks[i];
+            if (ticker == "") continue;
+            if (stocks[ticker].bought_val < estimate_value(ticker)) {
+                
+            }
         }
+
+        // decide what to buy
+        for (int i = 0; i < NUM_OWNED; i++) {
+            string ticker = owned_stocks[i];
+            if (ticker == "") continue;
+        }        
+            
+
+        sleep(1);
     }
     return 0;
 }
